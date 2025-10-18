@@ -1,0 +1,5 @@
+[
+  {"id":"course-1","title":"Intro to Web","description":"HTML, CSS & JS basics","duration":"3 weeks","teacherId":"teacher-1","students":[],"assignments":[]},
+  {"id":"course-2","title":"JavaScript Essentials","description":"JS fundamentals and DOM","duration":"4 weeks","teacherId":"teacher-1","students":[],"assignments":[]},
+  {"id":"course-3","title":"React Basics","description":"Build UIs with React","duration":"5 weeks","teacherId":"teacher-2","students":[],"assignments":[]}
+]

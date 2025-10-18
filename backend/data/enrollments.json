@@ -1,0 +1,14 @@
+[
+  {
+    "id": "enr-1760696117168",
+    "studentId": "user-1760695770720",
+    "courseId": "course-1",
+    "enrolledAt": "2025-10-17T10:15:17.168Z"
+  },
+  {
+    "id": "enr-1760696287816",
+    "studentId": "user-1760696266967",
+    "courseId": "course-1",
+    "enrolledAt": "2025-10-17T10:18:07.817Z"
+  }
+]
