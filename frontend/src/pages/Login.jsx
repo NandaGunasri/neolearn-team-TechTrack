@@ -1,92 +1,111 @@
 // frontend/src/pages/Login.jsx
 import React, { useState } from 'react';
-import API from '../services/api';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 export default function Login() {
-  const [form, setForm] = useState({ email: '', password: '' });
-  const [loading, setLoading] = useState(false);
+  const { login } = useAuth();
   const navigate = useNavigate();
+  const [form, setForm] = useState({ email: '', password: '' });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  function change(k, v) {
-    setForm(prev => ({ ...prev, [k]: v }));
-  }
-
-  async function submit(e) {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-
-    if (!form.email || !form.password) {
-      return alert('Please enter email and password');
-    }
-
+    setError('');
     setLoading(true);
     try {
-      // make request and await response
-      const res = await API.post('/auth/login', {
-        email: form.email,
-        password: form.password
-      });
-
-      // success: store token and user in localStorage so Dashboard and other pages can use it
-      const token = res?.data?.token;
-      const user = res?.data?.user || null;
-      if (token) {
-        localStorage.setItem('token', token);
-      }
-      if (user) {
-        localStorage.setItem('user', JSON.stringify(user));
-      }
-
-      // temporary debug log to confirm token stored (remove after testing)
-      console.log('Login succeeded. token stored?', !!localStorage.getItem('token'));
-
-      alert('Logged in: ' + (user?.name || res?.data?.message || 'OK'));
-
-      // navigate to welcome splash OR directly to dashboard if splash already seen
-      const seenSplash = localStorage.getItem('seenWelcomeSplash');
-      navigate(seenSplash ? '/dashboard' : '/welcome');
+      await login(form.email, form.password);
+      navigate('/welcome');
     } catch (err) {
-      console.error('Login error full:', err);
-      // prefer server message when available
-      const serverMsg =
-        err?.response?.data?.message ||
-        err?.response?.data?.error ||
-        err?.message ||
-        'Login failed';
-      alert('Login failed: ' + serverMsg);
+      setError(err?.response?.data?.error || 'Invalid credentials');
     } finally {
       setLoading(false);
     }
-  }
+  };
+
+  const [showPassword, setShowPassword] = useState(false);
 
   return (
-    <div style={{ padding: 24, maxWidth: 540, margin: '40px auto' }}>
-      <h2>Login</h2>
-      <form onSubmit={submit}>
-        <label style={{ display: 'block', marginTop: 12 }}>Email</label>
-        <input
-          type="email"
-          value={form.email}
-          onChange={e => change('email', e.target.value)}
-          placeholder="you@example.com"
-          style={{ width: '100%', padding: 8, borderRadius: 6 }}
-        />
-
-        <label style={{ display: 'block', marginTop: 12 }}>Password</label>
-        <input
-          type="password"
-          value={form.password}
-          onChange={e => change('password', e.target.value)}
-          placeholder="Password"
-          style={{ width: '100%', padding: 8, borderRadius: 6 }}
-        />
-
-        <div style={{ marginTop: 16 }}>
-          <button type="submit" disabled={loading} className="btn">
-            {loading ? 'Signing in…' : 'Sign in'}
-          </button>
+    <div className="auth-wrapper fade-in">
+      {/* Visual Section */}
+      <div className="auth-visual">
+        <div style={{ position: 'absolute', top: '-10%', right: '-10%', width: '400px', height: '400px', background: 'rgba(255,255,255,0.1)', borderRadius: '50%' }}></div>
+        <div style={{ position: 'relative', zIndex: 1 }}>
+          <div className="logo-box mb-4" style={{ background: 'white', color: 'var(--primary)', width: '64px', height: '64px', fontSize: '2rem' }}>NL</div>
+          <h1 style={{ fontSize: '3rem', color: 'white', marginBottom: '1.5rem', lineHeight: 1.1 }}>Master Every Skill,<br/>Lead the Future.</h1>
+          <p style={{ fontSize: '1.25rem', opacity: 0.9, maxWidth: '480px', lineHeight: 1.6, marginBottom: '3rem' }}>
+            Access the most advanced LMS platform with expert-led curriculum, real-time collaboration, and elite career tracking.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+              <div style={{ width: '40px', height: '40px', background: 'rgba(255,255,255,0.2)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>💎</div>
+              <span style={{ fontWeight: 600 }}>Platinum Grade Curriculum</span>
+            </div>
+            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+              <div style={{ width: '40px', height: '40px', background: 'rgba(255,255,255,0.2)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>🚀</div>
+              <span style={{ fontWeight: 600 }}>Accelerated Career Paths</span>
+            </div>
+          </div>
         </div>
-      </form>
+      </div>
+
+      {/* Form Section */}
+      <div className="auth-form-container">
+        <div className="auth-card">
+          <div className="mb-5">
+            <div className="badge badge-primary mb-3" style={{ background: 'rgba(79, 70, 229, 0.1)', color: 'var(--primary)' }}>Secure Access</div>
+            <h2 style={{ fontSize: '2.25rem', marginBottom: '0.5rem', fontWeight: 800 }}>Welcome Back</h2>
+            <p className="small-muted">Enter your NeoLearn credentials to continue.</p>
+          </div>
+
+          {error && <div style={{ background: '#FEE2E2', color: '#B91C1C', padding: '1rem', borderRadius: '12px', marginBottom: '1.5rem', fontSize: '0.9rem', fontWeight: 600, border: '1px solid rgba(239, 68, 68, 0.2)' }}>{error}</div>}
+
+          <form onSubmit={handleSubmit}>
+            <div className="form-group">
+              <label>Email Address</label>
+              <input 
+                type="email" 
+                className="form-control"
+                placeholder="nanda@example.com"
+                value={form.email} 
+                onChange={e => setForm({...form, email: e.target.value})} 
+                required 
+              />
+            </div>
+            <div className="form-group">
+              <label>Password</label>
+              <div style={{ position: 'relative' }}>
+                <input 
+                  type={showPassword ? "text" : "password"} 
+                  className="form-control"
+                  style={{ paddingRight: '3.5rem' }}
+                  placeholder="••••••••"
+                  value={form.password} 
+                  onChange={e => setForm({...form, password: e.target.value})} 
+                  required 
+                />
+                <button 
+                  type="button" 
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-soft)', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 700 }}
+                >
+                  {showPassword ? "HIDE" : "SHOW"}
+                </button>
+              </div>
+            </div>
+
+            <button type="submit" className="btn btn-primary btn-block mt-4" style={{ padding: '1rem', borderRadius: '14px', fontSize: '1rem' }} disabled={loading}>
+              {loading ? 'Authenticating...' : 'Sign In to Dashboard'}
+            </button>
+          </form>
+
+          <div className="text-center mt-5">
+            <span className="small-muted">New to NeoLearn? </span>
+            <Link to="/register" style={{ color: 'var(--primary)', fontWeight: 700, textDecoration: 'none' }}>Create Platinum Account</Link>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

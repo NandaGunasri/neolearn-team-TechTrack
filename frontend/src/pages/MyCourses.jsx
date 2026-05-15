@@ -1,54 +1,53 @@
 // frontend/src/pages/MyCourses.jsx
 import React, { useEffect, useState } from 'react';
-import { getMyCourses } from '../services/courseService';
 import { Link } from 'react-router-dom';
+import API from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 export default function MyCourses() {
+  const { user } = useAuth();
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let mounted = true;
-    const load = async () => {
+    const fetchMyCourses = async () => {
       try {
-        setLoading(true);
-        const res = await getMyCourses();
-        if (!mounted) return;
-        // dedupe by id
-        const unique = Array.from(new Map((res.data.courses || []).map(c => [c.id, c])).values());
-        setCourses(unique);
-      } catch (err) {
-        console.error(err);
-        alert(err?.response?.data?.error || 'Failed to load courses');
-      } finally {
-        if (mounted) setLoading(false);
-      }
+        const isTeacher = user.role.toLowerCase() === 'teacher';
+        const res = await API.get(isTeacher ? '/courses/owned' : '/courses/enrolled');
+        setCourses(res.data.courses || []);
+      } catch (err) { console.error(err); } finally { setLoading(false); }
     };
-    load();
-    return () => { mounted = false; };
-  }, []);
+    if (user) fetchMyCourses();
+  }, [user]);
 
-  if (loading) return <p className="p-6">Loading…</p>;
+  if (loading) return <div className="container" style={{ padding: '5rem', textAlign: 'center' }}><div className="spinner"></div></div>;
 
   return (
-    <div className="p-6">
-      <h2 className="text-2xl font-bold mb-4">My Courses</h2>
+    <div className="container fade-in" style={{ padding: '4rem 0' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3rem' }}>
+        <div>
+          <h2 style={{ fontSize: '2rem' }}>{user.role.toLowerCase() === 'teacher' ? 'Your Curriculum' : 'Learning Library'}</h2>
+          <p className="small-muted">Managing {courses.length} active modules.</p>
+        </div>
+        {user.role.toLowerCase() === 'teacher' && <Link to="/dashboard" className="btn btn-primary">+ Create Course</Link>}
+      </div>
 
       {courses.length === 0 ? (
-        <div className="rounded p-6 bg-white shadow">No courses found.</div>
+        <div className="card text-center" style={{ padding: '5rem' }}>
+          <p className="small-muted mb-4">You haven't started any courses yet.</p>
+          <Link to="/" className="btn btn-primary">Browse Catalog</Link>
+        </div>
       ) : (
-        <div className="space-y-6">
+        <div className="course-grid">
           {courses.map(course => (
-            <div key={course.id} className="rounded p-6 bg-white shadow flex justify-between items-center">
-              <div>
-                <h3 className="text-lg font-semibold">{course.title}</h3>
-                <p className="text-sm text-gray-600">{course.description}</p>
+            <div key={course.id} className="course-card">
+              <div className="course-thumb" style={{ height: '140px' }}>
+                {course.category === 'Coding' ? '💻' : '📚'}
               </div>
-              <div className="flex gap-3">
-                <Link to={`/courses/${course.id}/students`} className="px-4 py-2 rounded bg-blue-600 text-white">
-                  View Students
-                </Link>
-                <Link to={`/courses/${course.id}`} className="px-4 py-2 rounded border">View</Link>
+              <div className="course-body">
+                <span className="course-tag">{course.category}</span>
+                <h3 style={{ fontSize: '1.2rem', marginBottom: '1rem' }}>{course.title}</h3>
+                <Link to={`/courses/${course.id}`} className="btn btn-outline btn-block">Enter Course</Link>
               </div>
             </div>
           ))}

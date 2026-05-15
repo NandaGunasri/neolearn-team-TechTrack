@@ -10,24 +10,30 @@ app.use(cors());
 app.use(express.json());
 
 // === Ensure DB/tables exist BEFORE mounting routers ===
-try {
-  require('./db-init'); // safe to require on every start
-  console.log('Database initialized (db-init loaded).');
-} catch (err) {
-  console.error('Failed to initialize DB (db-init):', err);
-  // don't exit here if you want the server to still try to start;
-  // but consider failing fast in production if DB is critical.
-}
+const { initDb } = require('./db');
+initDb()
+  .then(() => console.log('Database initialized.'))
+  .catch(err => {
+    console.error('Failed to initialize DB:', err);
+    process.exit(1);
+  });
 
 // === Mount routers ===
 const authRouter = require('./routes/auth');
 const coursesRouter = require('./routes/courses');
+const assignmentsRouter = require('./routes/assignments');
+const gradesRouter = require('./routes/grades');
+const discussionsRouter = require('./routes/discussions');
+const materialsRouter = require('./routes/materials');
+const notificationsRouter = require('./routes/notifications');
 
 app.use('/api/auth', authRouter);
-console.log('Mounted auth router at /api/auth');
-
 app.use('/api/courses', coursesRouter);
-console.log('Mounted courses router at /api/courses');
+app.use('/api/assignments', assignmentsRouter);
+app.use('/api/grades', gradesRouter);
+app.use('/api/discussions', discussionsRouter);
+app.use('/api/materials', materialsRouter);
+app.use('/api/notifications', notificationsRouter);
 
 // === Health check ===
 app.get('/ping', (req, res) => {
@@ -50,48 +56,6 @@ if (process.env.NODE_ENV === 'production') {
 
   console.log('Configured to serve frontend from', buildPath);
 }
-
-// === Utility: list registered routes (for debugging) ===
-function listRoutes(appInstance) {
-  const routes = [];
-  const stack = (appInstance._router && appInstance._router.stack) || [];
-
-  stack.forEach((middleware) => {
-    if (middleware.route) {
-      // direct route
-      const methods = Object.keys(middleware.route.methods).map(m => m.toUpperCase()).join(',');
-      routes.push(`${methods} ${middleware.route.path}`);
-    } else if (middleware.name === 'router' && middleware.handle && middleware.handle.stack) {
-      // router mounted on a path (express >=4)
-      const mountPath = middleware.regexp && middleware.regexp.source
-        ? regexpToPath(middleware.regexp)
-        : '<router>';
-      middleware.handle.stack.forEach((handler) => {
-        if (handler.route) {
-          const methods = Object.keys(handler.route.methods).map(m => m.toUpperCase()).join(',');
-          routes.push(`${methods} ${mountPath}${handler.route.path}`);
-        }
-      });
-    }
-  });
-
-  console.log('Registered routes:\n' + routes.join('\n'));
-}
-
-// helper to convert a mounted router regexp to a readable path (best-effort)
-function regexpToPath(re) {
-  // e.g. /^\/api\/auth\/?(?=\/|$)/i  -> /api/auth
-  try {
-    const s = re.toString();
-    const m = s.match(/^\/\^\\\/(.+)\\\/\?\(\?=\\\/\|\$\)\/i$/);
-    if (m && m[1]) {
-      return '/' + m[1].replace(/\\\//g, '/');
-    }
-  } catch (e) { /* ignore */ }
-  return '<router>';
-}
-
-listRoutes(app);
 
 // === Start server (after routers are mounted) ===
 const PORT = process.env.PORT || 5000;

@@ -2,7 +2,8 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { run, get } = require('../db'); // adjust if your db helper is different
+const { run, get } = require('../db');
+const { auth } = require('../middleware/auth');
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'devsecret';
@@ -20,12 +21,12 @@ router.post('/register', async (req, res) => {
 
     const hashed = await bcrypt.hash(password, 10);
     const result = await run(
-      'INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)',
-      [name, email, hashed, role]
+      'INSERT INTO users (name, email, password, role, skill_level, points, streak) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [name, email, hashed, role, 'Beginner', 0, 0]
     );
 
     const userId = result.lastID;
-    const user = { id: userId, name, email, role };
+    const user = { id: userId, name, email, role, skill_level: 'Beginner', points: 0, streak: 0 };
     const token = jwt.sign({ id: userId, email, role }, JWT_SECRET, { expiresIn: '7d' });
 
     return res.status(201).json({ message: 'Registered', token, user });
@@ -41,19 +42,49 @@ router.post('/login', async (req, res) => {
     const { email, password } = req.body || {};
     if (!email || !password) return res.status(400).json({ error: 'email and password required' });
 
-    const userRow = await get('SELECT id, name, email, password, role FROM users WHERE email = ?', [email]);
+    const userRow = await get('SELECT * FROM users WHERE email = ?', [email]);
     if (!userRow) return res.status(401).json({ error: 'Invalid credentials' });
 
     const ok = await bcrypt.compare(password, userRow.password);
     if (!ok) return res.status(401).json({ error: 'Invalid credentials' });
 
-    const user = { id: userRow.id, name: userRow.name, email: userRow.email, role: userRow.role };
+    const user = { 
+      id: userRow.id, 
+      name: userRow.name, 
+      email: userRow.email, 
+      role: userRow.role,
+      skill_level: userRow.skill_level,
+      points: userRow.points,
+      streak: userRow.streak,
+      last_activity_date: userRow.last_activity_date
+    };
     const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
 
     return res.json({ message: 'Logged in', token, user });
   } catch (err) {
     console.error('[LOGIN ERROR]', err);
     return res.status(500).json({ error: 'Server error', details: err.message });
+  }
+});
+
+// Get current user profile
+router.get('/me', auth, async (req, res) => {
+  try {
+    const user = await get('SELECT id, name, email, role, skill_level, points, streak FROM users WHERE id = ?', [req.user.id]);
+    res.json({ user });
+  } catch (err) {
+    res.status(500).json({ error: 'Database error', details: err.message });
+  }
+});
+
+// Get current user achievements
+router.get('/achievements', auth, async (req, res) => {
+  try {
+    const { all } = require('../db');
+    const achievements = await all('SELECT * FROM achievements WHERE user_id = ? ORDER BY awarded_at DESC', [req.user.id]);
+    res.json({ achievements });
+  } catch (err) {
+    res.status(500).json({ error: 'Database error', details: err.message });
   }
 });
 
